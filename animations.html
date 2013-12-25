@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Animations performance shootout</title>
+		<style type="text/css">
+			body {
+				font-family: Verdana;
+				font-size: 1em;
+				color: white;
+				background-color: gray;
+			}
+			body input {
+				width: 100px;
+			}
+			.anim {
+				position: absolute;
+				border: 1px solid black;
+			}
+			.animEffects {
+				border-radius: 10px;
+				box-shadow: 10px 10px 5px #888888;
+			}
+			.text {
+				color: white;
+				font-family: verdana;
+			}
+			.textEffects {
+				text-shadow: 10px 10px 5px #888888;
+			}
+			#settings {
+				position: absolute;
+				left: 150px;
+				border: 1px solid black;
+			}
+			#settings input {
+				padding: 5px;
+			}
+			#settings select {
+				height: 25px;
+				line-height: 25px;
+			}
+			#container {
+				top: 50px;
+				position: absolute;
+			}
+		</style>
+		<script type="text/javascript" src="fpsmeter.min.js"></script>
+		<script type="text/javascript" src="pixi.js"></script>
+		<script type="text/javascript" src="kinetic.js"></script>
+		<script type="text/javascript">
+			var rectCount = 10, animType = "manual",  speed, wwidth, wheight,
+				animFn = animatemanual, div, meter, elems = [], stage, stageRenderer, effects = false;
+			function buildmanual () {
+				// animate div
+				if (!div) {
+					div = document.body.removeChild(document.getElementById("animation")).cloneNode(true);
+				}
+				var val = parseInt(document.getElementById("rectcount").value, 10);
+				if (val > 0) {
+					rectCount = val;
+				}
+				for (var i = 0; i < rectCount; i++) {
+					var elem = div.cloneNode(true);
+					elems.push(elem);
+					// change color
+					elem.id = "rect" + i;
+					elem.style.backgroundColor = getColorVal();
+					elem.style.width = getSizeVal() + "px";
+					elem.style.height = getSizeVal() + "px";
+					if (effects) {
+						elem.className = "anim animEffects textEffects";
+					}
+					// set initial position
+					elem.speed = getSpeed();
+					elem.reverse = 1;
+					elem.style.left = getOffsetVal(true) + "px";
+					elem.style.top = getOffsetVal(false) + "px";
+					document.body.appendChild(elem);
+				}
+			}
+			function buildpixijs() {
+				var val = parseInt(document.getElementById("rectcount").value, 10);
+				if (val > 0) {
+					rectCount = val;
+				}
+				stage = new PIXI.Stage("gray");
+				stageRenderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight);
+				if(stageRenderer instanceof PIXI.CanvasRenderer) {
+				    console.log("Using Canvas");
+				} else {
+				    console.log("Using WebGL");
+				}
+				stageRenderer.view.style.display = "block";
+				stageRenderer.view.id = "pixiContainer";
+				document.body.appendChild(stageRenderer.view);
+				for (var i = 0; i < rectCount; i++) {
+					var rect = new PIXI.Graphics();
+					var color = getColorVal();
+					rect.beginFill(parseInt(color.substring(1, color.length), 16));
+					rect.lineStyle(1, 0x000000);
+					if (effects) {
+
+					}
+					var width = getSizeVal();
+					var height = getSizeVal();
+					var offsetHeight = getOffsetVal(false);
+					rect.drawRect(0, offsetHeight, width, height);
+					rect.width = width;
+					rect.height = height;
+					// add text
+					rect.speed = getSpeed();
+					rect.reverse = 1;
+					rect.id = "rect" + i;
+					var text = new PIXI.Text("The quick brown fox jumps over the lazy dog.", {font:"18px Arial", fill: "white", align: "left", wordWrap: true, wordWrapWidth: width});
+					rect.addChild(text);
+					stage.addChild(rect);
+					rect.text = text;
+					text.position = new PIXI.Point(0,offsetHeight);
+					// add text
+					elems.push(rect);
+				}
+			}
+			function buildkineticjs() {
+				var val = parseInt(document.getElementById("rectcount").value, 10);
+				if (val > 0) {
+					rectCount = val;
+				}
+				var container = document.getElementById("container");
+				if (!container) {
+					var div = document.createElement("div");
+					div.id = "container";
+					document.body.appendChild(div);
+					container = div;
+				}
+				container.style.width = window.innerWidth + "px";
+				container.style.height = window.innerHeight + "px";
+				stage = new Kinetic.Stage({
+					container: "container",
+					width: window.innerWidth,
+					height: window.innerHeight
+				});
+				var layer = new Kinetic.Layer();
+				for (var i = 0; i < rectCount; i++) {
+					var rectopts = {
+						x: getOffsetVal(true),
+						y: getOffsetVal(false),
+						width: getSizeVal(),
+						height: getSizeVal(),
+						fill: getColorVal(),
+						stroke: 'black',
+						strokeWidth: 1
+					};
+					if (effects) {
+						rectopts.cornerRadius = 10;
+						rectopts.shadowColor = 'black';
+						rectopts.shadowBlur = 10;
+						rectopts.shadowOffset = 10;
+						rectopts.shadowOpacity = 0.5;
+					}
+					var rect = new Kinetic.Rect(rectopts);
+					// add the shape to the layer
+					layer.add(rect);
+					var textopts = {
+						x: rect.getPosition().x,
+						y: rect.getPosition().y,
+						text: "The quick brown fox jumps over the lazy dog.",
+						fontSize: 18,
+						fontFamily: "Calibri",
+						fill: "white",
+						width: rect.getWidth(),
+						height: rect.getHeight(),
+						padding: 20,
+						align: "center"
+					};
+					if (effects) {
+						textopts.shadowColor = "black";
+						textopts.shadowBlur = 2;
+						textopts.shadowOffset = 10;
+						textopts.shadowOpacity = 0.5;
+					}
+					var text = new Kinetic.Text(textopts);
+					rect.speed = getSpeed();
+					rect.reverse = 1;
+					rect.id = "rect" + i;
+					rect.text = text;
+					// add text
+					elems.push(rect);
+					layer.add(text);
+				}
+				// add the layer to the stage
+				stage.add(layer);
+			}
+			function cleanup() {
+				var currentElems = document.querySelectorAll(".anim");
+				for (var i = 0; i < currentElems.length; i++) {
+					cancelAnimationFrame(currentElems[i].requestId);
+					document.body.removeChild(currentElems[i]);
+				}
+				for (var i = 0; i < elems.length; i++) {
+					cancelAnimationFrame(elems[i].requestId);
+				}
+				elems = [];
+				var elem = document.getElementById("animation");
+				if (elem) {
+					document.body.removeChild(elem);
+				}
+				elem = document.getElementById("container");
+				if (elem) {
+					document.body.removeChild(elem);
+				}
+				elem = document.getElementById("pixiContainer");
+				if (elem) {
+					document.body.removeChild(elem);
+				}
+			}
+			function startAnimation () {
+				for (var i = 0; i < elems.length; i++) {
+					(function (i) {
+						var fn = function () {
+							animFn.apply(elems[i]);
+						};
+						elems[i].fn = fn;
+						requestAnimationFrame(fn);
+					} (i));
+				}
+			}
+			function getSpeed() {
+				return Math.floor(Math.random() * 100 | 0) + 1;
+			}
+			// get a random color
+			function getColorVal () {
+				return "#" + ((1 << 24) * Math.random() | 0).toString(16);
+			}
+			function getSizeVal () {
+				return Math.floor(Math.random() * 200 | 0) + 50;
+			}
+			function getOffsetVal (width) {
+				return Math.floor(Math.random() * (width ? window.innerWidth : window.innerHeight) | 0) + 50;
+			}
+			function animatemanual() {
+				//meter.tickStart();
+				var leftVal = parseInt(this.style.left, 10);
+				// move right, if it's to the right edge, move it left
+				if (leftVal + this.offsetWidth > wwidth) {
+					this.reverse = -1;
+				}
+				if (leftVal <= 0) {
+					this.reverse = 1;
+				}
+				this.style.left = leftVal + this.speed * this.reverse + "px";
+				// we want to measure the animation of a single div, given that there are many elements 
+				// that are being animated. Otherwise if we tick() for every single requestAnimationFrame
+				// the FPSMeter library will show some meaningless values more than 60 fps (multiplied by all elems)
+				// this is a relatively stable measure of fps
+				if (this.id === "rect0") {
+					meter.tick();
+				}
+				this.requestId = requestAnimationFrame(this.fn);
+			}
+			function animatepixijs() {
+				//meter.tickStart();
+				var x = this.position.x;
+				// move right, if it's to the right edge, move it left
+				if (x + this.width + this.speed > wwidth) {
+					this.reverse = -1;
+				}
+				if (x - this.speed + this.width <= 0) {
+					this.reverse = 1;
+				}
+				this.position.x = x + this.speed * this.reverse;
+				//this.text.position.x = this.position.x;
+				if (this.id === "rect0") {
+					meter.tick();
+					stageRenderer.render(stage);
+				}
+				this.requestId = requestAnimationFrame(this.fn);
+			}
+			function animatekineticjs() {
+				//meter.tickStart();
+				var x = this.getPosition().x;
+				// move right, if it's to the right edge, move it left
+				if (x + this.getWidth() > wwidth) {
+					this.reverse = -1;
+				}
+				if (x <= 0) {
+					this.reverse = 1;
+				}
+				this.setX(x + this.speed * this.reverse);
+				this.text.setX(x + this.speed * this.reverse);
+				if (this.id=== "rect0") {
+					meter.tick();
+					stage.draw();
+				}
+				this.requestId = requestAnimationFrame(this.fn);	
+			}
+			function DOMContentLoaded() {
+				wwidth = window.innerWidth, wheight = window.innerHeight;
+				document.getElementById("animType").addEventListener("change", function (event) {
+					animType = event.target.value;
+					animFn = window["animate" + animType];
+					cleanup();
+					window["build" + animType]();
+					startAnimation();
+				});
+				/*
+				document.getElementById("speed").addEventListener("blur", function (event) {
+					speed = event.target.value;
+				});
+				*/
+				document.getElementById("applyCount").addEventListener("click", function (event) {
+					cleanup();
+					window["build" + animType]();
+					startAnimation();
+				});
+				document.getElementById("effects").addEventListener("change", function (event) {
+					cleanup();
+					effects = event.target.checked;
+					window["build" + animType]();
+					startAnimation();
+				});
+				meter = new FPSMeter({ theme: 'transparent', graph: 1, heat: 1});
+				//speed = parseInt(document.getElementById("speed").value, 10);
+				window["build" + animType]();
+				startAnimation();
+			}
+			document.addEventListener( "DOMContentLoaded", DOMContentLoaded, false);
+		</script>
+	</head>
+	<body>
+		<div id="settings">
+			<!-- <span>Step (Speed):</span><input id="speed" value="10"/> -->
+			<span># of rectangles:</span><input id="rectcount" value="10"/>
+			<button id="applyCount">Apply</button>
+			<span>Animatate using:</span>
+			<select id="animType">
+				<option value="manual">CSS manual - left & top</option>
+				<option value="pixijs">Pixi.JS (autodetect: WebGL / Canvas)</option>
+				<option value="kineticjs">Kinetic.JS (Canvas)</option>
+			</select>
+			<span>effects (border radius, box shadow, text shadow): </span><input id="effects" type="checkbox"/>
+		</div>
+		<div id="container">
+		</div>
+		<div id="animation" class="anim">
+			<div class="text">
+				The quick brown fox jumps over the lazy dog.
+			</div>
+		</div>
+	</body>
+</html>
